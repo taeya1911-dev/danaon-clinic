@@ -90,22 +90,38 @@ def _run(cmd):
 
 
 def require_ffmpeg():
-    missing = [b for b in ("ffmpeg", "ffprobe") if not shutil.which(b)]
-    if missing:
+    if not shutil.which("ffmpeg"):
         raise SystemExit(
-            f"{', '.join(missing)} 를 찾을 수 없습니다. ffmpeg 설치가 필요합니다.\n"
+            "ffmpeg 을 찾을 수 없습니다.\n"
             "  macOS: brew install ffmpeg   /   Windows: winget install ffmpeg\n"
+            "  파이썬만 있으면: pip install imageio-ffmpeg (정적 빌드가 함께 설치됨)\n"
             "설치 없이 판정 로직만 쓰려면 --from-json 으로 탐지 결과를 넘기세요."
         )
 
 
+def parse_duration_from_log(text):
+    """ffmpeg 로그의 'Duration: 00:01:23.45' 를 초로. ffprobe가 없는 빌드용."""
+    m = re.search(r"Duration:\s*(\d+):(\d+):([\d.]+)", text)
+    if not m:
+        return None
+    h, mi, s = m.groups()
+    return int(h) * 3600 + int(mi) * 60 + float(s)
+
+
 def probe_duration(path):
-    out = _run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1", path]).strip()
-    try:
-        return float(out.splitlines()[-1])
-    except (ValueError, IndexError):
-        raise SystemExit(f"영상 길이를 읽지 못했습니다: {path}\n{out}")
+    # 정적 빌드나 pip 설치본에는 ffprobe가 없는 경우가 많아 ffmpeg 로그로도 읽는다.
+    if shutil.which("ffprobe"):
+        out = _run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1", path]).strip()
+        try:
+            return float(out.splitlines()[-1])
+        except (ValueError, IndexError):
+            pass
+    log = _run(["ffmpeg", "-hide_banner", "-i", path])
+    duration = parse_duration_from_log(log)
+    if duration is None:
+        raise SystemExit(f"영상 길이를 읽지 못했습니다: {path}\n{log[-500:]}")
+    return duration
 
 
 def detect_silences(path, threshold_db, min_sec):
@@ -273,6 +289,10 @@ def _self_test():
     check("showinfo 파싱",
           parse_scene_times("n:1 pts_time:4.20 \nn:2 pts_time:11.00 ") == [4.2, 11.0])
     check("시각 파싱", abs(parse_timecode("00:01:23.5") - 83.5) < 1e-6)
+    check("ffmpeg 로그에서 길이 파싱",
+          abs(parse_duration_from_log(
+              "  Duration: 00:01:23.45, start: 0.000000, bitrate: 1000 kb/s") - 83.45) < 1e-6)
+    check("길이 없는 로그는 None", parse_duration_from_log("no duration here") is None)
     check("keep 범위 파싱", parse_keep_ranges(["00:00:10-00:00:20"]) == [(10.0, 20.0)])
 
     cfg = dict(DEFAULTS)
