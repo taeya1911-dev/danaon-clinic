@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 200">
+  <!--
+    PLACEHOLDER ONLY. This is not anyone's logo.
+    It exists so the animation can be built and verified before the real
+    reference artwork arrives. It deliberately mixes primitive types
+    (circle, rect, rounded rect, polygon, cubic path, quadratic path) so every
+    branch of the geometry extractor gets exercised.
+    Replace logo-animation/logo.svg with the real logo and run `npm run logo`.
+  -->
+
+  <!-- mark -->
+  <circle cx="100" cy="100" r="64" fill="#16233F"/>
+  <circle cx="100" cy="100" r="30" fill="#FFFFFF"/>
+  <path d="M100 36 C135.35 36 164 64.65 164 100 L134 100 C134 81.22 118.78 66 100 66 Z" fill="#2E6BE6"/>
+
+  <!-- wordmark -->
+  <rect x="228" y="68" width="26" height="64" fill="#16233F"/>
+  <rect x="286" y="68" width="64" height="64" rx="32" fill="#16233F"/>
+  <polygon points="382,132 418,68 454,132" fill="#16233F"/>
+  <path d="M486 132 Q518 62 550 132 L528 132 Q518 100 508 132 Z" fill="#2E6BE6"/>
+  <rect x="580" y="68" width="26" height="64" fill="#16233F"/>
+</svg>

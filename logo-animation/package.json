@@ -1,0 +1,20 @@
+{
+  "name": "logo-construction-animation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deterministic 4-second vector construction animation, built from a logo's own path geometry.",
+  "type": "module",
+  "scripts": {
+    "logo": "node scripts/build-logo.mjs",
+    "preview": "node scripts/preview.mjs",
+    "verify": "node scripts/verify.mjs",
+    "render": "node scripts/capture.mjs",
+    "render:square": "node scripts/capture.mjs --width=1080 --height=1080",
+    "render:master": "node scripts/capture.mjs --scale=2 --keep-frames",
+    "render:frames": "node scripts/capture.mjs --format=png --keep-frames"
+  },
+  "devDependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "playwright": "^1.49.0"
+  }
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Logo Construction — 4s</title>
+<style>
+  :root { color-scheme: light; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #FFFFFF;
+    font: 12px/1.4 ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #6B7280;
+  }
+  /* The capture viewport is exactly the output size; the preview letterboxes it. */
+  #wrap { position: fixed; inset: 0; display: grid; place-items: center; background: #FFFFFF; }
+  #stage { display: block; max-width: 100%; max-height: 100%; }
+  body.capture #wrap { display: block; }
+  body.capture #stage { max-width: none; max-height: none; }
+  body.capture #hud { display: none; }
+
+  /* Source logo must be laid out for getBBox/getScreenCTM, just not visible. */
+  #source { position: fixed; left: -20000px; top: 0; opacity: 0; pointer-events: none; }
+
+  #hud {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; background: rgba(255,255,255,.92);
+    border-top: 1px solid #EAECEF; backdrop-filter: blur(6px);
+  }
+  #hud button {
+    font: inherit; padding: 5px 12px; border: 1px solid #D8DCE2;
+    border-radius: 6px; background: #fff; color: #374151; cursor: pointer;
+  }
+  #hud button:hover { background: #F7F8FA; }
+  #scrub { flex: 1; accent-color: #59616F; }
+  #clock { font-variant-numeric: tabular-nums; min-width: 108px; }
+  #phase { min-width: 78px; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+  #warn {
+    position: fixed; top: 0; left: 0; right: 0; padding: 10px 16px;
+    background: #FEF3C7; color: #713F12; border-bottom: 1px solid #FDE68A;
+    display: none; white-space: pre-wrap;
+  }
+</style>
+</head>
+<body>
+  <div id="warn"></div>
+  <div id="wrap"><svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div id="source"></div>
+
+  <div id="hud">
+    <button id="play">Play</button>
+    <button id="restart">Restart</button>
+    <input id="scrub" type="range" min="0" max="4000" step="1" value="0">
+    <span id="clock">0.000s / 4.000s</span>
+    <span id="phase"></span>
+  </div>
+
+  <script src="logo.js"></script>
+  <script src="geometry.js"></script>
+  <script src="timeline.js"></script>
+  <script src="scene.js"></script>
+  <script src="player.js"></script>
+</body>
+</html>
