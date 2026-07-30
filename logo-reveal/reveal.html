@@ -1,0 +1,227 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>logo reveal</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+/*
+ * 4초 타이프라이터 로고 리빌.
+ *
+ * 이 파일은 상태를 갖지 않는다. drawAt(t)는 오직 t만 보고 그 시각의 프레임을
+ * 그린다. 렌더러가 프레임을 건너뛰거나 다시 그려도 결과가 같아야 하기 때문이다.
+ *
+ * 좌표의 핵심: 워드마크는 "완성된 상태로 가운데 정렬"된 위치의 왼쪽 끝에
+ * 고정된다. 타이핑 중에 글자가 늘어나도 이미 찍힌 글자는 절대 움직이지 않는다.
+ * (가운데 정렬을 매 프레임 다시 하면 글자가 왼쪽으로 밀려나가는데, 그건
+ * 브리프가 금지한 slide다.)
+ */
+
+const LR = (() => {
+  let cfg, spec, ctx, canvas;
+  let fullText, segments, fontSizePx, trackingPx, left, baselineY, fullWidth;
+  let charStarts;   // charStarts[k] = k번째 글자가 시작하는 x (left 기준 상대 offset)
+  let segOffsets;   // 세그먼트별 시작 x offset
+
+  function fontString(sizePx) {
+    const fam = JSON.stringify(cfg.wordmark.fontFamily);
+    return `${cfg.wordmark.fontStyle} ${cfg.wordmark.fontWeight} ${sizePx}px ${fam}`;
+  }
+
+  // letterSpacing이 켜져 있으면 measureText는 마지막 글자 뒤의 자간까지 포함한다.
+  // 커서 위치(= 다음 글자가 시작할 자리)에는 그 자간이 필요하고,
+  // 워드마크의 시각적 폭에는 필요 없다.
+  function advance(s) {
+    if (s.length === 0) return 0;
+    return ctx.measureText(s).width;
+  }
+
+  // 가운데 정렬과 크기는 advance box가 아니라 "실제 잉크의 좌우 끝"을 기준으로 한다.
+  // advance box에는 첫 글자의 왼쪽 사이드베어링과 마지막 글자의 오른쪽 사이드베어링이
+  // 들어 있고, 둘은 보통 같지 않다. 그대로 가운데를 맞추면 눈에는 한쪽으로 치우쳐 보인다.
+  function inkBox(s) {
+    const m = ctx.measureText(s);
+    return {
+      left: m.actualBoundingBoxLeft,     // 기준점에서 왼쪽으로 뻗은 거리
+      right: m.actualBoundingBoxRight,   // 기준점에서 오른쪽으로 뻗은 거리
+      width: m.actualBoundingBoxLeft + m.actualBoundingBoxRight,
+      ascent: m.actualBoundingBoxAscent,
+      descent: m.actualBoundingBoxDescent,
+    };
+  }
+
+  function layout() {
+    const W = cfg.canvas.width, H = cfg.canvas.height;
+
+    // 1) 폰트 크기 확정. targetWidthRatio가 있으면 폭이 선형으로 스케일하는 성질을
+    //    이용해 한 번의 측정으로 역산한다.
+    if (cfg.wordmark.targetWidthRatio) {
+      const probe = 100;
+      trackingPx = cfg.wordmark.letterSpacingEm * probe;
+      ctx.letterSpacing = `${trackingPx}px`;
+      ctx.font = fontString(probe);
+      const probeWidth = inkBox(fullText).width;
+      fontSizePx = probe * (cfg.wordmark.targetWidthRatio * W) / probeWidth;
+    } else {
+      fontSizePx = cfg.wordmark.fontSizePx;
+    }
+
+    trackingPx = cfg.wordmark.letterSpacingEm * fontSizePx;
+    ctx.letterSpacing = `${trackingPx}px`;
+    ctx.font = fontString(fontSizePx);
+    ctx.textBaseline = 'alphabetic';
+
+    // 2) 완성된 워드마크의 잉크가 화면 정중앙에 오도록 기준점을 잡는다.
+    //    이후 이 값은 변하지 않는다 — 타이핑 중 글자가 늘어나도 재정렬하지 않는다.
+    const box = inkBox(fullText);
+    fullWidth = box.width;
+    left = (W - fullWidth) / 2 + box.left;
+
+    // 3) 세로도 잉크 기준. em box로 맞추면 디센더 없는 대문자 워드마크가 아래로 처진다.
+    baselineY = H / 2 + (box.ascent - box.descent) / 2;
+
+    // 4) 글자별 x offset을 미리 계산. prefix 단위로 재는 이유는 커닝을 살리기
+    //    위해서다. 글자를 하나씩 재서 더하면 커닝이 무시되고, 완성본이 원본
+    //    로고와 자간이 달라진다.
+    charStarts = [0];
+    for (let k = 1; k <= fullText.length; k++) {
+      charStarts.push(advance(fullText.slice(0, k)));
+    }
+
+    segOffsets = [];
+    let idx = 0;
+    for (const seg of segments) {
+      segOffsets.push(charStarts[idx]);
+      idx += seg.text.length;
+    }
+  }
+
+  // ---- 타임라인 ----
+
+  function typedCount(t) {
+    const p = spec.phases.typing;
+    const N = fullText.length;
+    if (t < p.start) return 0;
+    if (t >= p.end) return N;
+    const step = (p.end - p.start) / N;
+    return Math.max(0, Math.min(N, Math.floor((t - p.start) / step)));
+  }
+
+  function cursorState(t) {
+    const ph = spec.phases;
+
+    if (t < ph.caret.end) {
+      // 일정한 주기로 깜빡인다.
+      const b = spec.blink;
+      const phase = (t % b.periodSec) / b.periodSec;
+      const on = phase < b.dutyCycle;
+      return { visible: b.startsOn ? on : !on };
+    }
+
+    if (t < ph.typing.end) {
+      if (spec.typing.solidWhileTyping) return { visible: true };
+      const b = spec.blink;
+      const phase = (t % b.periodSec) / b.periodSec;
+      return { visible: b.startsOn ? phase < b.dutyCycle : phase >= b.dutyCycle };
+    }
+
+    if (t < ph.settle.end) {
+      // 켜짐-꺼짐을 blinkCount번 반복하고 꺼진 채로 끝난다.
+      const local = t - ph.settle.start;
+      const total = ph.settle.end - ph.settle.start;
+      const slot = total / (spec.settle.blinkCount * 2);
+      const i = Math.floor(local / slot);
+      return { visible: i % 2 === 0 };
+    }
+
+    return { visible: false };   // hold 구간: 워드마크만 남는다
+  }
+
+  // ---- 그리기 ----
+
+  function drawAt(t) {
+    const W = cfg.canvas.width, H = cfg.canvas.height;
+    ctx.fillStyle = cfg.background;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.letterSpacing = `${trackingPx}px`;
+    ctx.font = fontString(fontSizePx);
+    ctx.textBaseline = 'alphabetic';
+
+    const k = typedCount(t);
+
+    // 세그먼트별로 지금까지 찍힌 부분만 그린다. 각 세그먼트는 자기 고정 위치에서
+    // 시작하므로 뒤 글자가 늘어나도 앞 글자는 움직이지 않는다.
+    let consumed = 0;
+    segments.forEach((seg, si) => {
+      const visibleChars = Math.max(0, Math.min(seg.text.length, k - consumed));
+      if (visibleChars > 0) {
+        ctx.fillStyle = seg.color;
+        ctx.fillText(seg.text.slice(0, visibleChars), left + segOffsets[si], baselineY);
+      }
+      consumed += seg.text.length;
+    });
+
+    const cur = cursorState(t);
+    if (cur.visible) {
+      const c = cfg.cursor;
+      const w = Math.max(c.widthEm * fontSizePx, c.minWidthPx);
+      const h = c.heightEm * fontSizePx;
+      const x = left + charStarts[k] + c.gapEm * fontSizePx;
+      const yBottom = baselineY + c.baselineOffsetEm * fontSizePx;
+      ctx.fillStyle = c.color;
+      ctx.fillRect(Math.round(x), Math.round(yBottom - h), Math.round(w), Math.round(h));
+    }
+  }
+
+  async function init(config, timeline, fontDataUrl) {
+    cfg = config;
+    spec = timeline;
+
+    canvas = document.getElementById('c');
+    canvas.width = cfg.canvas.width;
+    canvas.height = cfg.canvas.height;
+    ctx = canvas.getContext('2d');
+
+    segments = cfg.wordmark.segments;
+    fullText = segments.map(s => s.text).join('');
+
+    if (fontDataUrl) {
+      const face = new FontFace(cfg.wordmark.fontFamily, `url(${fontDataUrl})`, {
+        weight: String(cfg.wordmark.fontWeight),
+        style: cfg.wordmark.fontStyle,
+      });
+      await face.load();
+      document.fonts.add(face);
+    }
+    await document.fonts.load(fontString(200));
+    await document.fonts.ready;
+
+    layout();
+
+    return {
+      text: fullText,
+      chars: fullText.length,
+      fontSizePx: Math.round(fontSizePx * 100) / 100,
+      wordmarkWidthPx: Math.round(fullWidth * 100) / 100,
+      widthRatio: Math.round((fullWidth / cfg.canvas.width) * 1000) / 1000,
+      inkLeftPx: Math.round(((cfg.canvas.width - fullWidth) / 2) * 100) / 100,
+      caretStartPx: Math.round(left * 100) / 100,
+      baselineYPx: Math.round(baselineY * 100) / 100,
+      msPerChar: Math.round(((spec.phases.typing.end - spec.phases.typing.start) / fullText.length) * 10000) / 10,
+    };
+  }
+
+  return { init, drawAt, typedCount, cursorState };
+})();
+
+window.LR = LR;
+</script>
+</body>
+</html>

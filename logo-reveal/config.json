@@ -1,0 +1,32 @@
+{
+  "_comment": "로고 리빌 설정. 업로드된 로고를 그대로 재현하기 위한 값만 들어간다. 애니메이션 타이밍은 spec.json에 있다.",
+
+  "canvas": { "width": 1920, "height": 1080, "fps": 60 },
+
+  "background": "#000000",
+
+  "wordmark": {
+    "_comment": "segments: 로고가 두 가지 색을 쓰면 색깔별로 나눠 적는다. 타이핑은 배열 순서대로 이어진다.",
+    "segments": [
+      { "text": "PLACEHOLDER", "color": "#FFFFFF" }
+    ],
+    "fontFamily": "DejaVu Sans Mono",
+    "fontFile": null,
+    "fontWeight": 700,
+    "fontStyle": "normal",
+    "fontSizePx": 180,
+    "letterSpacingEm": 0.0,
+    "_comment_size": "fontSizePx는 targetWidthRatio가 설정되면 무시된다.",
+    "targetWidthRatio": 0.62
+  },
+
+  "cursor": {
+    "_comment": "터미널 캐럿. widthEm/heightEm은 폰트 크기 기준.",
+    "color": "#FFFFFF",
+    "widthEm": 0.07,
+    "minWidthPx": 3,
+    "heightEm": 0.95,
+    "baselineOffsetEm": 0.06,
+    "gapEm": 0.0
+  }
+}

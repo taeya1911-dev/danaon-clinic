@@ -1,0 +1,15 @@
+{
+  "name": "logo-reveal",
+  "private": true,
+  "version": "1.0.0",
+  "description": "4초 타이프라이터 로고 리빌 렌더러",
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs",
+    "verify": "node verify.mjs",
+    "test": "node render.mjs && node verify.mjs"
+  },
+  "dependencies": {
+    "playwright-core": "^1.62.1"
+  }
+}

@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .cache/
 .capcut-auto/
+
+node_modules/
+logo-reveal/out/
+logo-reveal/frames/

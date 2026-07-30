@@ -1,0 +1,31 @@
+{
+  "_comment": "4초 타임라인. 초 단위. 이 값들이 브리프의 타임라인을 그대로 옮긴 것이다.",
+
+  "duration": 4.0,
+
+  "phases": {
+    "caret": { "start": 0.0, "end": 0.6 },
+    "typing": { "start": 0.6, "end": 2.8 },
+    "settle": { "start": 2.8, "end": 3.4 },
+    "hold":   { "start": 3.4, "end": 4.0 }
+  },
+
+  "blink": {
+    "_comment": "caret 구간의 깜빡임 주기. 0.6초 주기 = 4초 안에서 정확히 한 사이클(켜짐→꺼짐)이 0-0.6초에 들어간다.",
+    "periodSec": 0.6,
+    "dutyCycle": 0.5,
+    "startsOn": true
+  },
+
+  "typing": {
+    "_comment": "solidWhileTyping: 실제 터미널은 키를 누르는 동안 캐럿이 깜빡이지 않는다(입력마다 깜빡임 위상이 리셋됨). 브리프의 '정확히 터미널에서 타이핑되는 것처럼'을 따른 값. false로 두면 타이핑 중에도 깜빡인다.",
+    "solidWhileTyping": true,
+    "easing": "linear"
+  },
+
+  "settle": {
+    "_comment": "타이핑이 끝난 뒤 캐럿이 두 번 깜빡이고 사라진다. 0.6초를 4등분: 켜짐-꺼짐-켜짐-꺼짐.",
+    "blinkCount": 2,
+    "endsHidden": true
+  }
+}
